@@ -131,4 +131,18 @@ export class MerchantController {
   async getDashboardSummary() {
     return this.merchantService.getDashboardSummary();
   }
+
+  @Get('agent/:agentId/merchants')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Get merchants by agent ID' })
+  async findByAgent(@Param('agentId') agentId: string, @Query() query: any) {
+    return this.merchantService.findByAgent(agentId, query);
+  }
+
+  @Get('agent/:agentId/deposit-summary')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.FINANCE)
+  @ApiOperation({ summary: 'Get aggregated deposit balance for agent merchants' })
+  async getAgentDepositSummary(@Param('agentId') agentId: string) {
+    return this.merchantService.getAgentDepositSummary(agentId);
+  }
 }

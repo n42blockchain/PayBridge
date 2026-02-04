@@ -243,4 +243,139 @@ export class TopupOrderService {
 
     this.logger.log(`Order ${orderNo} status updated to ${status}`);
   }
+
+  /**
+   * Create a deposit (margin) topup order for merchant
+   * This is used for MERCHANT_PORTAL type orders targeting DEPOSIT wallet
+   */
+  async createDepositTopup(merchantId: string, fiatAmount: string) {
+    // Get merchant with DEPOSIT wallet
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: merchantId },
+      include: {
+        config: true,
+        wallets: {
+          where: { type: 'DEPOSIT', isActive: true },
+        },
+      },
+    });
+
+    if (!merchant || !merchant.config) {
+      throw new BadRequestException('Merchant not found or not configured');
+    }
+
+    if (merchant.status !== 'ENABLED') {
+      throw new BadRequestException('Merchant is disabled');
+    }
+
+    const depositWallet = merchant.wallets[0];
+    if (!depositWallet) {
+      throw new BadRequestException('No deposit wallet found');
+    }
+
+    // Get exchange rate
+    const exchangeRateSetting = await this.prisma.systemSetting.findUnique({
+      where: { key: 'topup.exchange_rate' },
+    });
+    const exchangeRate = new Decimal(
+      (exchangeRateSetting?.value as number) || 1,
+    );
+
+    // Calculate amounts
+    const fiat = new Decimal(fiatAmount);
+    const tokenAmount = fiat.mul(exchangeRate);
+
+    // For deposit topup, fee is typically 0 or use special rate
+    const depositFeeSetting = await this.prisma.systemSetting.findUnique({
+      where: { key: 'deposit.fee_percentage' },
+    });
+    const depositFeePercentage = new Decimal(
+      (depositFeeSetting?.value as number) || 0,
+    );
+    const fee = tokenAmount.mul(depositFeePercentage);
+    const actualAmount = tokenAmount.sub(fee);
+
+    // Generate order number
+    const orderNo = generateOrderNo(ORDER_PREFIXES.TOPUP);
+
+    // Get timeout
+    const defaultTimeout = this.configService.get<number>(
+      'TOPUP_DEFAULT_TIMEOUT_MINUTES',
+      30,
+    );
+    const expireAt = new Date(Date.now() + defaultTimeout * 60 * 1000);
+
+    // Create order targeting deposit wallet
+    const order = await this.prisma.topupOrder.create({
+      data: {
+        orderNo,
+        merchantOrderNo: `DEP-${Date.now()}`,
+        merchantId,
+        orderType: 'MERCHANT_PORTAL',
+        fiatAmount: fiat.toFixed(2),
+        fiatCurrency: 'CNY',
+        exchangeRate: exchangeRate.toFixed(8),
+        tokenAmount: tokenAmount.toFixed(8),
+        fee: fee.toFixed(8),
+        actualAmount: actualAmount.toFixed(8),
+        feeChargeMode: FeeChargeMode.INTERNAL,
+        depositAddress: depositWallet.address,
+        depositWalletId: depositWallet.id,
+        expireAt,
+      },
+    });
+
+    this.logger.log(`Deposit topup order created: ${order.orderNo}`);
+
+    return {
+      orderNo: order.orderNo,
+      fiatAmount: order.fiatAmount.toString(),
+      tokenAmount: order.tokenAmount.toString(),
+      exchangeRate: order.exchangeRate.toString(),
+      fee: order.fee.toString(),
+      actualAmount: order.actualAmount.toString(),
+      depositAddress: order.depositAddress,
+      expireAt: order.expireAt.toISOString(),
+    };
+  }
+
+  /**
+   * Get deposit orders for a merchant
+   */
+  async findDepositOrders(merchantId: string, query: any) {
+    const { status, startDate, endDate, page = 1, pageSize = 20 } = query;
+
+    const where: any = {
+      merchantId,
+      orderType: 'MERCHANT_PORTAL',
+      depositWalletId: { not: null },
+    };
+
+    if (status) where.status = status;
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) where.createdAt.lte = new Date(endDate);
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.topupOrder.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.topupOrder.count({ where }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
 }

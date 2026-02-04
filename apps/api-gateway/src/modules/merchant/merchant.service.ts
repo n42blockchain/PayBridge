@@ -486,4 +486,91 @@ export class MerchantService {
       pendingAudit: pendingSettlement,
     };
   }
+
+  /**
+   * Get merchants associated with an agent
+   */
+  async findByAgent(agentId: string, query: any) {
+    const { status, search, page = 1, pageSize = 20 } = query;
+
+    const where: any = { agentId };
+
+    if (status) where.status = status;
+    if (search) {
+      where.OR = [
+        { merchantCode: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.merchant.findMany({
+        where,
+        select: {
+          id: true,
+          merchantCode: true,
+          name: true,
+          status: true,
+          createdAt: true,
+          wallets: {
+            where: { isActive: true },
+            select: { type: true, balance: true },
+          },
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.merchant.count({ where }),
+    ]);
+
+    return {
+      items: items.map((m) => ({
+        ...m,
+        custodyBalance: m.wallets
+          .filter((w) => w.type === 'CUSTODY')
+          .reduce((sum, w) => sum + Number(w.balance), 0)
+          .toString(),
+        depositBalance: m.wallets
+          .filter((w) => w.type === 'DEPOSIT')
+          .reduce((sum, w) => sum + Number(w.balance), 0)
+          .toString(),
+        wallets: undefined,
+      })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
+
+  /**
+   * Get aggregated deposit balance for all merchants under an agent
+   */
+  async getAgentDepositSummary(agentId: string) {
+    const merchants = await this.prisma.merchant.findMany({
+      where: { agentId },
+      include: {
+        wallets: {
+          where: { type: 'DEPOSIT', isActive: true },
+          select: { balance: true },
+        },
+      },
+    });
+
+    let totalDeposit = 0;
+    for (const merchant of merchants) {
+      for (const wallet of merchant.wallets) {
+        totalDeposit += Number(wallet.balance);
+      }
+    }
+
+    return {
+      agentId,
+      merchantCount: merchants.length,
+      totalDepositBalance: totalDeposit.toString(),
+    };
+  }
 }

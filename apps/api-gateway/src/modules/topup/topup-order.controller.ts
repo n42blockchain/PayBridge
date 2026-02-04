@@ -1,9 +1,12 @@
 import {
   Controller,
   Get,
+  Post,
+  Body,
   Param,
   Query,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@paybridge/shared-types';
@@ -61,5 +64,31 @@ export class TopupOrderController {
       return null;
     }
     return order;
+  }
+
+  @Post('deposit')
+  @Roles(UserRole.MERCHANT_ADMIN)
+  @ApiOperation({ summary: 'Create deposit (margin) topup order (merchant)' })
+  async createDepositTopup(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: { fiatAmount: string },
+  ) {
+    if (!user.merchantId) {
+      throw new BadRequestException('Merchant ID required');
+    }
+    return this.orderService.createDepositTopup(user.merchantId, body.fiatAmount);
+  }
+
+  @Get('deposit/list')
+  @Roles(UserRole.MERCHANT_ADMIN, UserRole.MERCHANT_USER)
+  @ApiOperation({ summary: 'List deposit topup orders (merchant)' })
+  async findDepositOrders(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query() query: any,
+  ) {
+    if (!user.merchantId) {
+      return { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 } };
+    }
+    return this.orderService.findDepositOrders(user.merchantId, query);
   }
 }

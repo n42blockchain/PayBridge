@@ -41,3 +41,13 @@ export {
 
 // Validation utilities
 export * from './validate';
+
+// Data export utilities
+export {
+  toCSV,
+  downloadCSV,
+  formatDateForExport,
+  formatAmountForExport,
+  OrderExportColumns,
+} from './data-export';
+export type { ExportColumn } from './data-export';
