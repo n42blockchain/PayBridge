@@ -1,0 +1,29 @@
+{
+  "name": "paybridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Blockchain payment system based on EVM compatible chain",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,vue,js,jsx,json,md}\"",
+    "db:generate": "pnpm --filter @paybridge/database db:generate",
+    "db:push": "pnpm --filter @paybridge/database db:push",
+    "db:migrate": "pnpm --filter @paybridge/database db:migrate",
+    "db:studio": "pnpm --filter @paybridge/database db:studio",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "prettier": "^3.2.4",
+    "turbo": "^2.3.0",
+    "typescript": "^5.3.3"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

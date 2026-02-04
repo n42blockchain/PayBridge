@@ -1,0 +1,143 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+// Layout
+.app-layout {
+  display: flex;
+  height: 100%;
+}
+
+.app-sidebar {
+  width: 200px;
+  background-color: #001529;
+  color: #fff;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-logo {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+  background-color: #002140;
+}
+
+.app-menu {
+  flex: 1;
+  overflow-y: auto;
+  border-right: none !important;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: #f5f7fa;
+}
+
+.app-header {
+  height: 56px;
+  background-color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.app-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+// Page
+.page-header {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.page-card {
+  background: #fff;
+  border-radius: 4px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+// Stats
+.stat-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+
+  &.green {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  }
+
+  &.orange {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  }
+
+  .stat-label {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 600;
+  }
+}
+
+// Utility
+.text-center {
+  text-align: center;
+}
+
+.mt-4 {
+  margin-top: 16px;
+}
+
+.mb-4 {
+  margin-bottom: 16px;
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-4 {
+  gap: 16px;
+}

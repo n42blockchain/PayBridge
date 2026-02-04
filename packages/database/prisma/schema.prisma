@@ -1,0 +1,628 @@
+// PayBridge Database Schema
+// Blockchain Payment System based on EVM Compatible Chain
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Enums
+// ============================================
+
+enum MerchantType {
+  NORMAL // 普通商户
+  AGENT  // 代理商
+}
+
+enum MerchantStatus {
+  ENABLED  // 启用
+  DISABLED // 禁用
+  FROZEN   // 冻结
+}
+
+enum ChainNetwork {
+  ETHEREUM
+  BSC
+  POLYGON
+  ARBITRUM
+  PAYBRIDGE // 自建链
+}
+
+enum FeeChargeMode {
+  INTERNAL // 内扣（从到账金额中扣除）
+  EXTERNAL // 外扣（用户额外支付）
+}
+
+enum Environment {
+  TEST       // 测试环境
+  PRODUCTION // 生产环境
+}
+
+enum ChannelStatus {
+  ENABLED  // 启用
+  DISABLED // 禁用
+}
+
+enum TopupOrderType {
+  API             // API 创建
+  MERCHANT_PORTAL // 商户后台创建（保证金充值）
+}
+
+enum TopupOrderStatus {
+  PENDING  // 待支付
+  PAYING   // 支付中
+  PAID     // 已支付（待链上确认）
+  SUCCESS  // 成功（链上已确认）
+  FAILED   // 失败
+  CLOSED   // 已关闭（超时）
+  REFUNDED // 已退款
+}
+
+enum PaymentStatus {
+  PENDING    // 待处理
+  PROCESSING // 处理中
+  SUCCESS    // 成功
+  FAILED     // 失败
+}
+
+enum RefundStatus {
+  PENDING    // 待处理
+  PROCESSING // 处理中
+  SUCCESS    // 成功
+  FAILED     // 失败
+  REJECTED   // 拒绝
+}
+
+enum SettlementMode {
+  API_INTEGRATION   // API 集成（通过第三方渠道）
+  ONCHAIN_TRANSFER  // 链上转账
+}
+
+enum SettlementOrderStatus {
+  PENDING       // 待处理
+  PENDING_AUDIT // 待审核
+  AUDITING      // 审核中
+  APPROVED      // 已批准
+  REJECTED      // 已拒绝
+  SETTLING      // 兑付中
+  SUCCESS       // 成功
+  FAILED        // 失败
+}
+
+enum AuditResult {
+  APPROVED // 批准
+  REJECTED // 拒绝
+}
+
+enum WalletType {
+  FUND_POOL // 资金池钱包
+  GAS       // Gas 钱包
+  CUSTODY   // 商户托管钱包
+  DEPOSIT   // 保证金钱包
+}
+
+enum TokenType {
+  NATIVE // 原生代币
+  ERC20  // ERC20 代币
+}
+
+enum OnchainTxStatus {
+  PENDING   // 待确认
+  CONFIRMED // 已确认
+  FAILED    // 失败
+}
+
+enum TransactionDirection {
+  IN  // 转入
+  OUT // 转出
+}
+
+enum CallbackType {
+  TOPUP  // 充值回调
+  REFUND // 退款回调
+}
+
+enum CallbackStatus {
+  PENDING   // 待发送
+  SUCCESS   // 成功
+  FAILED    // 失败（重试中）
+  ABANDONED // 已放弃（超过重试次数）
+}
+
+enum UserRole {
+  SUPER_ADMIN   // 超级管理员
+  ADMIN         // 管理员
+  OPERATOR      // 运营
+  FINANCE       // 财务
+  AUDITOR_L1    // 一级审核员
+  AUDITOR_L2    // 二级审核员
+  AUDITOR_L3    // 三级审核员
+  MERCHANT_ADMIN // 商户管理员
+  MERCHANT_USER  // 商户普通用户
+}
+
+enum UserStatus {
+  ACTIVE   // 活跃
+  INACTIVE // 未激活
+  LOCKED   // 锁定
+}
+
+// ============================================
+// User & Authentication
+// ============================================
+
+model User {
+  id                String     @id @default(cuid())
+  email             String     @unique @db.VarChar(255)
+  passwordHash      String     @db.VarChar(255)
+  name              String     @db.VarChar(100)
+  role              UserRole
+  status            UserStatus @default(ACTIVE)
+  merchantId        String?    // 商户用户关联的商户
+  twoFactorSecret   String?    @db.VarChar(255) // 加密存储
+  twoFactorEnabled  Boolean    @default(false)
+  lastLoginAt       DateTime?
+  lastLoginIp       String?    @db.VarChar(45)
+  passwordChangedAt DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  merchant          Merchant?          @relation(fields: [merchantId], references: [id])
+  loginLogs         LoginLog[]
+  settlementAudits  SettlementAudit[]
+  operationLogs     OperationLog[]
+
+  @@index([merchantId])
+  @@index([role])
+  @@index([status])
+}
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String
+  ip        String   @db.VarChar(45)
+  userAgent String?  @db.VarChar(500)
+  success   Boolean
+  reason    String?  @db.VarChar(255) // 失败原因
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============================================
+// Merchant
+// ============================================
+
+model Merchant {
+  id                  String         @id @default(cuid())
+  merchantCode        String         @unique @db.VarChar(12) // M + 11位随机
+  name                String         @db.VarChar(100)
+  type                MerchantType   @default(NORMAL)
+  status              MerchantStatus @default(ENABLED)
+  selfCustodyAddress  String?        @db.VarChar(42) // 商户自托管钱包地址
+  settlementAddress   String?        @db.VarChar(42) // USDT 接收地址
+  settlementChain     ChainNetwork?  // 接收链网络
+  agentId             String?        // 代理商关联（如果是被代理商户）
+  callbackUrl         String?        @db.VarChar(500) // 回调通知地址
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  agent               Merchant?          @relation("AgentRelation", fields: [agentId], references: [id])
+  agentMerchants      Merchant[]         @relation("AgentRelation")
+  config              MerchantConfig?
+  wallets             Wallet[]
+  users               User[]
+  topupOrders         TopupOrder[]
+  settlementOrders    SettlementOrder[]
+  merchantCallbacks   MerchantCallback[]
+  onchainTransactions OnchainTransaction[]
+  channelAssignments  MerchantChannelAssignment[]
+
+  @@index([merchantCode])
+  @@index([agentId])
+  @@index([status])
+}
+
+model MerchantConfig {
+  id         String @id @default(cuid())
+  merchantId String @unique
+
+  // 充值费率
+  topupPercentageFee  Decimal       @db.Decimal(8, 6) // 如 0.025000 = 2.5%
+  topupFixedFee       Decimal       @db.Decimal(18, 8)
+  topupMinimumFee     Decimal       @db.Decimal(18, 8)
+  topupFeeChargeMode  FeeChargeMode @default(INTERNAL)
+
+  // 兑付费率
+  settlementPercentageFee  Decimal       @db.Decimal(8, 6)
+  settlementFixedFee       Decimal       @db.Decimal(18, 8)
+  settlementMinimumFee     Decimal       @db.Decimal(18, 8)
+  settlementFeeChargeMode  FeeChargeMode @default(INTERNAL)
+
+  // 退款费率
+  refundPercentageFee Decimal @db.Decimal(8, 6)
+  refundFixedFee      Decimal @db.Decimal(18, 8)
+  refundMinimumFee    Decimal @db.Decimal(18, 8)
+
+  // 兑付限制
+  settlementMinAmount Decimal @db.Decimal(18, 8) // 最低起兑金额
+  settlementMaxAmount Decimal @db.Decimal(18, 8) // 最高单次兑付金额
+  settlementCycleDays Int     @default(1)        // D+N 兑付周期
+  depositMinBalance   Decimal @db.Decimal(18, 8) // 保证金最低限额
+
+  // 网关配置
+  encryptionAlgorithm String @default("HMAC-SHA256") @db.VarChar(50) // RSA | HMAC-SHA256
+  apiKey              String @unique @db.VarChar(64)
+  apiSecret           String @db.Text // 加密存储
+  publicKey           String? @db.Text // RSA 公钥（商户提供）
+  ipWhitelist         String[] // IP 白名单
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([apiKey])
+}
+
+// ============================================
+// Topup (Deposit) Channels & Orders
+// ============================================
+
+model TopupChannel {
+  id                  String        @id @default(cuid())
+  code                String        @unique @db.VarChar(32) // 渠道标识
+  name                String        @db.VarChar(100)
+  environment         Environment   @default(PRODUCTION)
+  status              ChannelStatus @default(ENABLED)
+  connectionConfig    String        @db.Text // AES 加密的 JSON 配置
+  costPercentageFee   Decimal       @db.Decimal(8, 6) // 渠道成本费率
+  costFixedFee        Decimal       @db.Decimal(18, 8)
+  costMinimumFee      Decimal       @db.Decimal(18, 8)
+  orderTimeoutMinutes Int           @default(30)
+  priority            Int           @default(0) // 优先级，数字越大优先级越高
+  dailyLimit          Decimal?      @db.Decimal(18, 2) // 每日限额
+  singleMinAmount     Decimal?      @db.Decimal(18, 2) // 单笔最小金额
+  singleMaxAmount     Decimal?      @db.Decimal(18, 2) // 单笔最大金额
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  paymentTransactions PaymentTransaction[]
+  merchantAssignments MerchantChannelAssignment[]
+
+  @@index([code])
+  @@index([status])
+}
+
+model MerchantChannelAssignment {
+  id         String   @id @default(cuid())
+  merchantId String
+  channelId  String
+  isEnabled  Boolean  @default(true)
+  priority   Int      @default(0) // 商户级别优先级覆盖
+  createdAt  DateTime @default(now())
+
+  merchant Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  channel  TopupChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, channelId])
+  @@index([merchantId])
+  @@index([channelId])
+}
+
+model TopupOrder {
+  id              String           @id @default(cuid())
+  orderNo         String           @unique @db.VarChar(32) // TP + 时间戳 + 序列号
+  merchantOrderNo String           @db.VarChar(64) // 商户订单号
+  merchantId      String
+  orderType       TopupOrderType   @default(API)
+  status          TopupOrderStatus @default(PENDING)
+
+  fiatAmount   Decimal @db.Decimal(18, 2)  // 法币金额
+  fiatCurrency String  @default("CNY") @db.VarChar(3)
+  exchangeRate Decimal @db.Decimal(18, 8)  // 法币→代币汇率
+  tokenAmount  Decimal @db.Decimal(18, 8)  // 代币总金额
+  fee          Decimal @db.Decimal(18, 8)  // 手续费
+  actualAmount Decimal @db.Decimal(18, 8)  // 实际到账代币数量
+
+  feeChargeMode   FeeChargeMode
+  depositAddress  String    @db.VarChar(42) // 充值目标钱包地址
+  depositWalletId String?   // 关联的钱包 ID
+  txHash          String?   @db.VarChar(66) // 链上转账哈希
+  callbackUrl     String?   @db.VarChar(500) // 订单级别回调地址
+  notifyUrl       String?   @db.VarChar(500) // 异步通知地址
+  returnUrl       String?   @db.VarChar(500) // 同步跳转地址
+  extra           Json?     // 附加数据
+
+  expireAt  DateTime  // 订单过期时间
+  paidAt    DateTime? // 支付完成时间
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  merchant            Merchant             @relation(fields: [merchantId], references: [id])
+  paymentTransactions PaymentTransaction[]
+  refundOrders        RefundOrder[]
+  merchantCallbacks   MerchantCallback[]   @relation("TopupOrderCallbacks")
+  onchainTransactions OnchainTransaction[] @relation("TopupOrderOnchain")
+
+  @@index([orderNo])
+  @@index([merchantOrderNo])
+  @@index([merchantId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([expireAt])
+}
+
+model PaymentTransaction {
+  id                   String        @id @default(cuid())
+  transactionNo        String        @unique @db.VarChar(32)
+  topupOrderId         String
+  channelId            String
+  channelTransactionNo String?       @db.VarChar(100) // 渠道交易号
+  amount               Decimal       @db.Decimal(18, 2)
+  status               PaymentStatus @default(PENDING)
+  callbackRawData      Json?         // 渠道回调原始数据
+  errorMessage         String?       @db.VarChar(500)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  topupOrder   TopupOrder    @relation(fields: [topupOrderId], references: [id])
+  channel      TopupChannel  @relation(fields: [channelId], references: [id])
+  refundOrders RefundOrder[]
+
+  @@index([topupOrderId])
+  @@index([channelId])
+  @@index([channelTransactionNo])
+  @@index([status])
+}
+
+// ============================================
+// Refund
+// ============================================
+
+model RefundOrder {
+  id                   String       @id @default(cuid())
+  refundNo             String       @unique @db.VarChar(32) // RF + 时间戳 + 序列号
+  topupOrderId         String
+  paymentTransactionId String
+  status               RefundStatus @default(PENDING)
+
+  refundFiatAmount   Decimal @db.Decimal(18, 2)  // 退款法币金额
+  refundTokenAmount  Decimal @db.Decimal(18, 8)  // 退款代币金额
+  depositDeduction   Decimal @db.Decimal(18, 8)  // 保证金扣除金额
+  refundFee          Decimal @db.Decimal(18, 8)  // 退款手续费
+  reason             String? @db.VarChar(500)    // 退款原因
+  channelRefundNo    String? @db.VarChar(100)    // 渠道退款单号
+  channelRawData     Json?   // 渠道退款回调原始数据
+  processedAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  topupOrder         TopupOrder         @relation(fields: [topupOrderId], references: [id])
+  paymentTransaction PaymentTransaction @relation(fields: [paymentTransactionId], references: [id])
+  merchantCallbacks  MerchantCallback[] @relation("RefundOrderCallbacks")
+
+  @@index([refundNo])
+  @@index([topupOrderId])
+  @@index([status])
+}
+
+// ============================================
+// Settlement (Payout) Channels & Orders
+// ============================================
+
+model SettlementChannel {
+  id               String         @id @default(cuid())
+  code             String         @unique @db.VarChar(32)
+  name             String         @db.VarChar(100)
+  mode             SettlementMode // API_INTEGRATION | ONCHAIN_TRANSFER
+  status           ChannelStatus  @default(ENABLED)
+  connectionConfig String?        @db.Text // 加密 JSON（API 模式需要）
+  percentageFee    Decimal        @db.Decimal(8, 6)
+  fixedFee         Decimal        @db.Decimal(18, 8)
+  minimumFee       Decimal        @db.Decimal(18, 8)
+  supportedChains  ChainNetwork[] // 支持的链网络
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  settlementOrders SettlementOrder[]
+
+  @@index([code])
+  @@index([status])
+}
+
+model SettlementOrder {
+  id           String                @id @default(cuid())
+  settlementNo String                @unique @db.VarChar(32) // ST + 时间戳 + 序列号
+  merchantId   String
+  status       SettlementOrderStatus @default(PENDING)
+
+  tokenAmount  Decimal      @db.Decimal(18, 8) // 兑付代币金额
+  fee          Decimal      @db.Decimal(18, 8) // 手续费
+  exchangeRate Decimal      @db.Decimal(18, 8) // 代币→USDT 汇率
+  usdtAmount   Decimal      @db.Decimal(18, 8) // 最终 USDT 金额
+
+  receivingAddress String       @db.VarChar(42)
+  receivingChain   ChainNetwork
+  channelId        String?
+  txHash           String?      @db.VarChar(66) // 链上转账哈希
+
+  expectedProcessAt DateTime? // D+N 预计处理时间
+  processedAt       DateTime?
+  currentAuditLevel Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  merchant            Merchant             @relation(fields: [merchantId], references: [id])
+  channel             SettlementChannel?   @relation(fields: [channelId], references: [id])
+  audits              SettlementAudit[]
+  onchainTransactions OnchainTransaction[] @relation("SettlementOrderOnchain")
+
+  @@index([settlementNo])
+  @@index([merchantId])
+  @@index([status])
+  @@index([expectedProcessAt])
+}
+
+model SettlementAudit {
+  id                String      @id @default(cuid())
+  settlementOrderId String
+  auditLevel        Int         // 审核级别：1, 2, 3
+  auditorId         String
+  result            AuditResult
+  comment           String?     @db.VarChar(500)
+  selectedChannelId String?     // 一级审核时选择的兑付渠道
+  auditedAt         DateTime    @default(now())
+
+  settlementOrder SettlementOrder @relation(fields: [settlementOrderId], references: [id])
+  auditor         User            @relation(fields: [auditorId], references: [id])
+
+  @@index([settlementOrderId])
+  @@index([auditorId])
+  @@index([auditLevel])
+}
+
+// ============================================
+// Wallet & Blockchain
+// ============================================
+
+model Wallet {
+  id                  String       @id @default(cuid())
+  type                WalletType
+  chain               ChainNetwork
+  address             String       @db.VarChar(42)
+  encryptedPrivateKey String       @db.Text // AES-256-GCM 加密
+  merchantId          String?      // 商户钱包关联
+  label               String?      @db.VarChar(100) // 钱包标签
+  balance             Decimal      @default(0) @db.Decimal(36, 18) // 余额缓存
+  nativeBalance       Decimal      @default(0) @db.Decimal(36, 18) // 原生代币余额（用于 Gas）
+  isActive            Boolean      @default(true)
+  lastSyncAt          DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  merchant            Merchant?            @relation(fields: [merchantId], references: [id])
+  onchainTransactions OnchainTransaction[]
+
+  @@unique([chain, address])
+  @@index([type])
+  @@index([merchantId])
+  @@index([isActive])
+}
+
+model OnchainTransaction {
+  id                String               @id @default(cuid())
+  txHash            String               @db.VarChar(66)
+  chain             ChainNetwork
+  blockNumber       BigInt
+  blockTimestamp    DateTime
+  fromAddress       String               @db.VarChar(42)
+  toAddress         String               @db.VarChar(42)
+  amount            Decimal              @db.Decimal(36, 18)
+  tokenType         TokenType
+  tokenAddress      String?              @db.VarChar(42) // ERC20 合约地址
+  status            OnchainTxStatus      @default(PENDING)
+  confirmations     Int                  @default(0)
+  direction         TransactionDirection
+  walletId          String?
+  merchantId        String?
+  topupOrderId      String?
+  settlementOrderId String?
+  gasUsed           Decimal?             @db.Decimal(36, 18)
+  gasPrice          Decimal?             @db.Decimal(36, 18)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  wallet          Wallet?          @relation(fields: [walletId], references: [id])
+  merchant        Merchant?        @relation(fields: [merchantId], references: [id])
+  topupOrder      TopupOrder?      @relation("TopupOrderOnchain", fields: [topupOrderId], references: [id])
+  settlementOrder SettlementOrder? @relation("SettlementOrderOnchain", fields: [settlementOrderId], references: [id])
+
+  @@unique([txHash, chain])
+  @@index([chain, blockNumber])
+  @@index([fromAddress])
+  @@index([toAddress])
+  @@index([walletId])
+  @@index([topupOrderId])
+  @@index([settlementOrderId])
+  @@index([status])
+}
+
+// ============================================
+// Callback & Notification
+// ============================================
+
+model MerchantCallback {
+  id             String         @id @default(cuid())
+  merchantId     String
+  callbackType   CallbackType
+  callbackUrl    String         @db.VarChar(500)
+  topupOrderId   String?
+  refundOrderId  String?
+  requestBody    Json
+  responseStatus Int?
+  responseBody   String?        @db.Text
+  retryCount     Int            @default(0)
+  maxRetries     Int            @default(7)
+  nextRetryAt    DateTime?
+  status         CallbackStatus @default(PENDING)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  merchant    Merchant     @relation(fields: [merchantId], references: [id])
+  topupOrder  TopupOrder?  @relation("TopupOrderCallbacks", fields: [topupOrderId], references: [id])
+  refundOrder RefundOrder? @relation("RefundOrderCallbacks", fields: [refundOrderId], references: [id])
+
+  @@index([merchantId])
+  @@index([status])
+  @@index([nextRetryAt])
+  @@index([topupOrderId])
+  @@index([refundOrderId])
+}
+
+// ============================================
+// System Settings
+// ============================================
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique @db.VarChar(100)
+  value       Json
+  description String?  @db.VarChar(500)
+  isEncrypted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================
+// Operation Logs
+// ============================================
+
+model OperationLog {
+  id           String   @id @default(cuid())
+  userId       String
+  action       String   @db.VarChar(100) // 操作类型
+  resource     String   @db.VarChar(100) // 资源类型
+  resourceId   String?  @db.VarChar(100) // 资源 ID
+  oldValue     Json?    // 修改前的值
+  newValue     Json?    // 修改后的值
+  ip           String   @db.VarChar(45)
+  userAgent    String?  @db.VarChar(500)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+}
