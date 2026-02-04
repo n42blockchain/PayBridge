@@ -457,7 +457,9 @@ model SettlementOrder {
 
   expectedProcessAt DateTime? // D+N 预计处理时间
   processedAt       DateTime?
+  completedAt       DateTime?
   currentAuditLevel Int       @default(0)
+  failReason        String?   @db.VarChar(500)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
