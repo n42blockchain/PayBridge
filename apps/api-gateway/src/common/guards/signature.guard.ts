@@ -12,6 +12,7 @@ import {
   verifyHmac,
   verifyRsa,
   isTimestampValid,
+  decrypt,
 } from '@paybridge/shared-utils';
 import { PrismaService } from '../../modules/prisma/prisma.service';
 import { RedisService } from '../../modules/redis/redis.service';
@@ -148,13 +149,10 @@ export class SignatureGuard implements CanActivate {
     return request.ip || request.socket.remoteAddress || '';
   }
 
-  private async decryptApiSecret(encryptedSecret: string): Promise<string> {
-    // In production, implement proper decryption using KMS or vault
-    // For now, using environment variable master key
-    const { decrypt } = await import('@paybridge/shared-utils');
+  private decryptApiSecret(encryptedSecret: string): string {
     const masterKey = this.configService.get<string>('WALLET_MASTER_KEY_V1');
     if (!masterKey) {
-      throw new Error('Master key not configured');
+      throw new Error('WALLET_MASTER_KEY_V1 not configured');
     }
     return decrypt(encryptedSecret, masterKey);
   }

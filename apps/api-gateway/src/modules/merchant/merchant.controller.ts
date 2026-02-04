@@ -107,4 +107,28 @@ export class MerchantController {
     await this.merchantService.toggleStatus(id, MerchantStatus.FROZEN);
     return { message: 'Merchant frozen' };
   }
+
+  @Get(':id/statistics')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Get merchant statistics' })
+  async getStatistics(@Param('id') id: string) {
+    return this.merchantService.getStatistics(id);
+  }
+
+  @Get('me/statistics')
+  @Roles(UserRole.MERCHANT_ADMIN, UserRole.MERCHANT_USER)
+  @ApiOperation({ summary: 'Get current merchant statistics' })
+  async getMyStatistics(@CurrentUser() user: CurrentUserPayload) {
+    if (!user.merchantId) {
+      return null;
+    }
+    return this.merchantService.getStatistics(user.merchantId);
+  }
+
+  @Get('dashboard/summary')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.OPERATOR, UserRole.FINANCE)
+  @ApiOperation({ summary: 'Get dashboard summary' })
+  async getDashboardSummary() {
+    return this.merchantService.getDashboardSummary();
+  }
 }

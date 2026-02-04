@@ -9,7 +9,12 @@ export class WalletCryptoService {
   private readonly masterKey: string;
 
   constructor(private configService: ConfigService) {
-    this.masterKey = this.configService.get<string>('WALLET_MASTER_KEY_V1', '');
+    const masterKey = this.configService.get<string>('WALLET_MASTER_KEY_V1');
+    if (!masterKey) {
+      this.logger.error('WALLET_MASTER_KEY_V1 is not configured');
+      throw new Error('WALLET_MASTER_KEY_V1 environment variable is required');
+    }
+    this.masterKey = masterKey;
   }
 
   /**

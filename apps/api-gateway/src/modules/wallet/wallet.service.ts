@@ -111,4 +111,79 @@ export class WalletService {
         : null,
     };
   }
+
+  /**
+   * Create merchant wallets (custody and deposit)
+   */
+  async createMerchantWallets(merchantId: string, chain: ChainNetwork) {
+    const results = {
+      custody: await this.create(WalletType.CUSTODY, chain, merchantId, 'Custody Wallet'),
+      deposit: await this.create(WalletType.DEPOSIT, chain, merchantId, 'Deposit Wallet'),
+    };
+
+    this.logger.log(`Created wallets for merchant ${merchantId}`);
+    return results;
+  }
+
+  /**
+   * Get merchant wallet summary
+   */
+  async getMerchantWalletSummary(merchantId: string) {
+    const wallets = await this.prisma.wallet.findMany({
+      where: { merchantId, isActive: true },
+      select: {
+        type: true,
+        address: true,
+        balance: true,
+        nativeBalance: true,
+      },
+    });
+
+    const custody = wallets.find((w) => w.type === 'CUSTODY');
+    const deposit = wallets.find((w) => w.type === 'DEPOSIT');
+
+    return {
+      custody: custody
+        ? {
+            address: custody.address,
+            balance: custody.balance.toString(),
+          }
+        : null,
+      deposit: deposit
+        ? {
+            address: deposit.address,
+            balance: deposit.balance.toString(),
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Get wallet by ID with decrypted private key
+   */
+  async getWalletForSigning(walletId: string) {
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { id: walletId },
+    });
+
+    if (!wallet) {
+      throw new NotFoundException('Wallet not found');
+    }
+
+    return this.walletCrypto.getWallet(wallet.encryptedPrivateKey, wallet.address);
+  }
+
+  /**
+   * Update wallet balance (called by blockchain sync)
+   */
+  async updateBalance(walletId: string, balance: string, nativeBalance: string) {
+    await this.prisma.wallet.update({
+      where: { id: walletId },
+      data: {
+        balance,
+        nativeBalance,
+        lastSyncAt: new Date(),
+      },
+    });
+  }
 }

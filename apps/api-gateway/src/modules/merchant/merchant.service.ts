@@ -3,6 +3,8 @@ import {
   NotFoundException,
   ConflictException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -11,8 +13,9 @@ import {
   generateApiSecret,
   encrypt,
 } from '@paybridge/shared-utils';
-import { MerchantStatus } from '@paybridge/shared-types';
+import { MerchantStatus, ChainNetwork } from '@paybridge/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
+import { WalletService } from '../wallet/wallet.service';
 import {
   CreateMerchantDto,
   UpdateMerchantDto,
@@ -28,8 +31,15 @@ export class MerchantService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    @Inject(forwardRef(() => WalletService))
+    private walletService: WalletService,
   ) {
-    this.masterKey = this.configService.get<string>('WALLET_MASTER_KEY_V1', '');
+    const masterKey = this.configService.get<string>('WALLET_MASTER_KEY_V1');
+    if (!masterKey) {
+      this.logger.error('WALLET_MASTER_KEY_V1 is not configured');
+      throw new Error('WALLET_MASTER_KEY_V1 environment variable is required');
+    }
+    this.masterKey = masterKey;
   }
 
   async create(dto: CreateMerchantDto) {
@@ -99,6 +109,12 @@ export class MerchantService {
       },
     });
 
+    // Create merchant wallets
+    const wallets = await this.walletService.createMerchantWallets(
+      merchant.id,
+      ChainNetwork.PAYBRIDGE,
+    );
+
     this.logger.log(`Merchant created: ${merchant.id} (${merchantCode})`);
 
     return {
@@ -107,6 +123,7 @@ export class MerchantService {
         ...merchant.config,
         apiSecret: apiSecret, // Return plain secret only on creation
       },
+      wallets,
     };
   }
 
@@ -365,5 +382,108 @@ export class MerchantService {
     });
 
     this.logger.log(`Merchant status changed to ${status}: ${id}`);
+  }
+
+  /**
+   * Get merchant statistics
+   */
+  async getStatistics(merchantId: string) {
+    const [
+      topupStats,
+      settlementStats,
+      refundStats,
+      walletSummary,
+    ] = await Promise.all([
+      // Topup statistics
+      this.prisma.topupOrder.aggregate({
+        where: { merchantId },
+        _sum: { fiatAmount: true, actualAmount: true, fee: true },
+        _count: { id: true },
+      }),
+      // Settlement statistics
+      this.prisma.settlementOrder.aggregate({
+        where: { merchantId },
+        _sum: { tokenAmount: true, usdtAmount: true, fee: true },
+        _count: { id: true },
+      }),
+      // Refund statistics
+      this.prisma.refundOrder.aggregate({
+        where: { topupOrder: { merchantId } },
+        _sum: { refundFiatAmount: true, depositDeduction: true },
+        _count: { id: true },
+      }),
+      // Wallet summary
+      this.walletService.getMerchantWalletSummary(merchantId),
+    ]);
+
+    return {
+      topup: {
+        totalOrders: topupStats._count.id,
+        totalFiatAmount: topupStats._sum.fiatAmount?.toString() || '0',
+        totalTokenAmount: topupStats._sum.actualAmount?.toString() || '0',
+        totalFees: topupStats._sum.fee?.toString() || '0',
+      },
+      settlement: {
+        totalOrders: settlementStats._count.id,
+        totalTokenAmount: settlementStats._sum.tokenAmount?.toString() || '0',
+        totalUsdtAmount: settlementStats._sum.usdtAmount?.toString() || '0',
+        totalFees: settlementStats._sum.fee?.toString() || '0',
+      },
+      refund: {
+        totalOrders: refundStats._count.id,
+        totalRefundAmount: refundStats._sum.refundFiatAmount?.toString() || '0',
+        totalDepositDeduction: refundStats._sum.depositDeduction?.toString() || '0',
+      },
+      wallets: walletSummary,
+    };
+  }
+
+  /**
+   * Get all merchants summary for dashboard
+   */
+  async getDashboardSummary() {
+    const [
+      totalMerchants,
+      activeMerchants,
+      todayTopup,
+      todaySettlement,
+      pendingSettlement,
+    ] = await Promise.all([
+      this.prisma.merchant.count(),
+      this.prisma.merchant.count({ where: { status: 'ENABLED' } }),
+      this.prisma.topupOrder.aggregate({
+        where: {
+          createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+          status: 'SUCCESS',
+        },
+        _sum: { fiatAmount: true },
+        _count: { id: true },
+      }),
+      this.prisma.settlementOrder.aggregate({
+        where: {
+          createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+          status: 'SUCCESS',
+        },
+        _sum: { usdtAmount: true },
+        _count: { id: true },
+      }),
+      this.prisma.settlementOrder.count({
+        where: { status: { in: ['PENDING_AUDIT', 'AUDITING'] } },
+      }),
+    ]);
+
+    return {
+      merchants: {
+        total: totalMerchants,
+        active: activeMerchants,
+      },
+      today: {
+        topupAmount: todayTopup._sum.fiatAmount?.toString() || '0',
+        topupCount: todayTopup._count.id,
+        settlementAmount: todaySettlement._sum.usdtAmount?.toString() || '0',
+        settlementCount: todaySettlement._count.id,
+      },
+      pendingAudit: pendingSettlement,
+    };
   }
 }

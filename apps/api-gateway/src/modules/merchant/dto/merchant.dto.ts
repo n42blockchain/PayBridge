@@ -3,12 +3,15 @@ import {
   IsEnum,
   IsOptional,
   MinLength,
+  MaxLength,
   IsInt,
   Min,
   Max,
   IsArray,
   IsDecimal,
   IsUrl,
+  Matches,
+  IsIP,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -19,10 +22,14 @@ import {
   FeeChargeMode,
 } from '@paybridge/shared-types';
 
+// Ethereum address regex (checksum-agnostic)
+const ETH_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
+
 export class CreateMerchantDto {
   @ApiProperty({ example: 'Acme Corporation' })
   @IsString()
   @MinLength(2)
+  @MaxLength(100)
   name: string;
 
   @ApiPropertyOptional({ enum: MerchantType, default: MerchantType.NORMAL })
@@ -30,14 +37,16 @@ export class CreateMerchantDto {
   @IsEnum(MerchantType)
   type?: MerchantType;
 
-  @ApiPropertyOptional({ description: 'Self custody wallet address' })
+  @ApiPropertyOptional({ description: 'Self custody wallet address (EVM format)' })
   @IsOptional()
   @IsString()
+  @Matches(ETH_ADDRESS_REGEX, { message: 'Invalid EVM wallet address format' })
   selfCustodyAddress?: string;
 
-  @ApiPropertyOptional({ description: 'USDT settlement receiving address' })
+  @ApiPropertyOptional({ description: 'USDT settlement receiving address (EVM format)' })
   @IsOptional()
   @IsString()
+  @Matches(ETH_ADDRESS_REGEX, { message: 'Invalid EVM wallet address format' })
   settlementAddress?: string;
 
   @ApiPropertyOptional({ enum: ChainNetwork })
@@ -61,6 +70,7 @@ export class UpdateMerchantDto {
   @IsOptional()
   @IsString()
   @MinLength(2)
+  @MaxLength(100)
   name?: string;
 
   @ApiPropertyOptional({ enum: MerchantStatus })
@@ -68,14 +78,16 @@ export class UpdateMerchantDto {
   @IsEnum(MerchantStatus)
   status?: MerchantStatus;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Self custody wallet address (EVM format)' })
   @IsOptional()
   @IsString()
+  @Matches(ETH_ADDRESS_REGEX, { message: 'Invalid EVM wallet address format' })
   selfCustodyAddress?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'USDT settlement receiving address (EVM format)' })
   @IsOptional()
   @IsString()
+  @Matches(ETH_ADDRESS_REGEX, { message: 'Invalid EVM wallet address format' })
   settlementAddress?: string;
 
   @ApiPropertyOptional({ enum: ChainNetwork })
@@ -85,7 +97,8 @@ export class UpdateMerchantDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUrl()
+  @IsUrl({}, { message: 'Invalid callback URL format' })
+  @MaxLength(500)
   callbackUrl?: string;
 }
 
