@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { RedisModule } from './modules/redis/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -15,6 +17,11 @@ import { CallbackModule } from './modules/callback/callback.module';
 import { SettingModule } from './modules/setting/setting.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { GatewayModule } from './modules/gateway/gateway.module';
+import { EventsModule } from './modules/events/events.module';
+import { CacheModule } from './modules/cache/cache.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
+import { HealthModule } from './modules/health/health.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -22,9 +29,30 @@ import { GatewayModule } from './modules/gateway/gateway.module';
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
     }),
+    // Rate limiting - 100 requests per minute per IP
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            name: 'default',
+            ttl: config.get<number>('THROTTLE_TTL', 60000),
+            limit: config.get<number>('THROTTLE_LIMIT', 100),
+          },
+          {
+            name: 'strict',
+            ttl: 60000,
+            limit: 10, // For sensitive endpoints like login
+          },
+        ],
+      }),
+    }),
     ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
+    EventsModule,
+    CacheModule,
     AuthModule,
     UserModule,
     MerchantModule,
@@ -37,6 +65,15 @@ import { GatewayModule } from './modules/gateway/gateway.module';
     SettingModule,
     JobsModule,
     GatewayModule,
+    MetricsModule,
+    HealthModule,
+    AuditModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

@@ -359,6 +359,10 @@ model TopupOrder {
   @@index([status])
   @@index([createdAt])
   @@index([expireAt])
+  // Composite indexes for common query patterns
+  @@index([merchantId, status, createdAt])  // Merchant order list with status filter
+  @@index([status, expireAt])                // Expired order scan
+  @@index([merchantId, orderType, status])   // Deposit orders query
 }
 
 model PaymentTransaction {
@@ -473,6 +477,10 @@ model SettlementOrder {
   @@index([merchantId])
   @@index([status])
   @@index([expectedProcessAt])
+  // Composite indexes for common query patterns
+  @@index([merchantId, status, createdAt])   // Merchant settlement list
+  @@index([status, currentAuditLevel])       // Audit queue query
+  @@index([status, expectedProcessAt])       // D+N processing scan
 }
 
 model SettlementAudit {
@@ -557,6 +565,10 @@ model OnchainTransaction {
   @@index([topupOrderId])
   @@index([settlementOrderId])
   @@index([status])
+  // Composite indexes for common query patterns
+  @@index([walletId, direction, createdAt])  // Wallet transaction history
+  @@index([status, confirmations])            // Confirmation tracking scan
+  @@index([merchantId, createdAt])            // Merchant transaction history
 }
 
 // ============================================
@@ -587,6 +599,9 @@ model MerchantCallback {
   @@index([merchantId])
   @@index([status])
   @@index([nextRetryAt])
+  // Composite indexes for common query patterns
+  @@index([status, nextRetryAt])             // Callback retry scan
+  @@index([merchantId, callbackType, status]) // Merchant callback history
   @@index([topupOrderId])
   @@index([refundOrderId])
 }

@@ -42,6 +42,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client;
   }
 
+  /**
+   * Ping Redis server to check connectivity
+   */
+  async ping(): Promise<string> {
+    return this.client.ping();
+  }
+
   async get(key: string): Promise<string | null> {
     return this.client.get(key);
   }
@@ -110,6 +117,51 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async smembers(key: string): Promise<string[]> {
     return this.client.smembers(key);
+  }
+
+  /**
+   * Set key with NX (only if not exists) and PX (milliseconds TTL)
+   * @returns true if set, false if key already exists
+   */
+  async setNX(key: string, value: string, ttlMs: number): Promise<boolean> {
+    const result = await this.client.set(key, value, 'PX', ttlMs, 'NX');
+    return result === 'OK';
+  }
+
+  /**
+   * Execute Lua script
+   */
+  async eval(script: string, keys: string[], args: string[]): Promise<unknown> {
+    return this.client.eval(script, keys.length, ...keys, ...args);
+  }
+
+  /**
+   * Get keys matching pattern
+   */
+  async keys(pattern: string): Promise<string[]> {
+    return this.client.keys(pattern);
+  }
+
+  /**
+   * Set multiple keys with TTL
+   */
+  async mset(keyValues: Record<string, string>, ttlSeconds?: number): Promise<void> {
+    const pipeline = this.client.pipeline();
+    for (const [key, value] of Object.entries(keyValues)) {
+      if (ttlSeconds) {
+        pipeline.set(key, value, 'EX', ttlSeconds);
+      } else {
+        pipeline.set(key, value);
+      }
+    }
+    await pipeline.exec();
+  }
+
+  /**
+   * Get multiple keys
+   */
+  async mget(keys: string[]): Promise<(string | null)[]> {
+    return this.client.mget(...keys);
   }
 
   async lock(

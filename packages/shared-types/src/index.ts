@@ -11,3 +11,6 @@ export * from './channel';
 export * from './wallet';
 export * from './settings';
 export * from './user';
+
+// Events
+export * from './events';
