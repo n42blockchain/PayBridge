@@ -5,6 +5,7 @@ import { ethers, Log } from 'ethers';
 import Decimal from 'decimal.js';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
+import { DistributedLockService } from '../redis/distributed-lock.service';
 
 const ERC20_TRANSFER_TOPIC = ethers.id('Transfer(address,address,uint256)');
 
@@ -14,12 +15,12 @@ export class BlockchainSyncJob {
   private readonly tokenAddress: string;
   private readonly tokenDecimals: number;
   private readonly syncBlockRange: number;
-  private isRunning = false;
 
   constructor(
     private prisma: PrismaService,
     private blockchainService: BlockchainService,
     private configService: ConfigService,
+    private distributedLock: DistributedLockService,
   ) {
     this.tokenAddress = this.configService.get<string>('TOKEN_CONTRACT_ADDRESS', '');
     this.tokenDecimals = this.configService.get<number>('TOKEN_DECIMALS', 18);
@@ -28,17 +29,24 @@ export class BlockchainSyncJob {
 
   @Cron('*/15 * * * * *') // Every 15 seconds
   async handleBlockchainSync() {
-    if (this.isRunning || !this.tokenAddress) {
+    if (!this.tokenAddress) {
       return;
     }
 
-    this.isRunning = true;
     try {
-      await this.syncTransactions();
+      await this.distributedLock.withLock(
+        'job:blockchain-sync',
+        async () => {
+          await this.syncTransactions();
+        },
+        { ttlMs: 60000, retryCount: 1 },
+      );
     } catch (error) {
+      if (error instanceof Error && error.message.includes('Failed to acquire lock')) {
+        this.logger.debug('Blockchain sync job running on another instance');
+        return;
+      }
       this.logger.error('Error in blockchain sync job:', error);
-    } finally {
-      this.isRunning = false;
     }
   }
 

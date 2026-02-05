@@ -1,0 +1,91 @@
+# PayBridge Role-Based Access Control (RBAC) Configuration
+#
+# Permission format: <resource>:<action> or <resource>:<scope>:<action>
+#
+# Resources: merchant, channel, order, wallet, user, setting, settlement
+# Actions: read, write, create, update, delete, export, * (all)
+# Scopes: self (own merchant only), merchant (merchant users)
+#
+# Wildcards:
+#   * - Full access to all resources
+#   resource:* - All actions on a resource
+#   resource:self:* - All actions on own resources
+
+roles:
+  # Platform super administrator - full system access
+  SUPER_ADMIN:
+    description: "Platform super administrator with unrestricted access"
+    permissions:
+      - "*"
+
+  # Platform administrator
+  ADMIN:
+    description: "Platform administrator for daily operations"
+    permissions:
+      - "merchant:*"
+      - "channel:*"
+      - "order:read"
+      - "order:export"
+      - "wallet:read"
+      - "user:*"
+      - "setting:*"
+
+  # Platform operator - read-only access
+  OPERATOR:
+    description: "Platform operator with read-only access"
+    permissions:
+      - "merchant:read"
+      - "channel:read"
+      - "order:read"
+      - "order:export"
+      - "wallet:read"
+
+  # Finance team member
+  FINANCE:
+    description: "Finance team member for order and wallet management"
+    permissions:
+      - "merchant:read"
+      - "order:*"
+      - "wallet:*"
+      - "settlement:read"
+
+  # Level 1 Auditor - initial settlement review
+  AUDITOR_L1:
+    description: "Level 1 auditor for initial settlement review"
+    permissions:
+      - "settlement:read"
+      - "settlement:audit:l1"
+
+  # Level 2 Auditor - secondary settlement review
+  AUDITOR_L2:
+    description: "Level 2 auditor for secondary settlement review"
+    permissions:
+      - "settlement:read"
+      - "settlement:audit:l2"
+
+  # Level 3 Auditor - final settlement approval
+  AUDITOR_L3:
+    description: "Level 3 auditor for final settlement approval"
+    permissions:
+      - "settlement:read"
+      - "settlement:audit:l3"
+
+  # Merchant administrator
+  MERCHANT_ADMIN:
+    description: "Merchant administrator for merchant self-management"
+    permissions:
+      - "merchant:self:read"
+      - "merchant:self:config"
+      - "order:self:*"
+      - "settlement:self:*"
+      - "wallet:self:read"
+      - "user:merchant:*"
+
+  # Merchant regular user
+  MERCHANT_USER:
+    description: "Merchant regular user with read-only access"
+    permissions:
+      - "merchant:self:read"
+      - "order:self:read"
+      - "settlement:self:read"
+      - "wallet:self:read"

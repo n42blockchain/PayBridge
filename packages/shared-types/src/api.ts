@@ -57,9 +57,10 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: UserInfo;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: string;
+  user?: UserInfo;
   requireTwoFactor?: boolean;
 }
 
@@ -67,7 +68,10 @@ export interface UserInfo {
   id: string;
   email: string;
   name: string;
+  username?: string;
+  avatar?: string;
   role: string;
+  permissions?: string[];
   merchantId?: string;
   merchantName?: string;
   twoFactorEnabled: boolean;
@@ -80,6 +84,7 @@ export interface RefreshTokenRequest {
 export interface RefreshTokenResponse {
   accessToken: string;
   refreshToken: string;
+  expiresAt: string;
 }
 
 // Gateway API types (merchant integration)

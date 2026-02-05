@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom utilities */
+@layer utilities {
+  .flex-c {
+    @apply flex justify-center items-center;
+  }
+
+  .flex-ac {
+    @apply flex justify-around items-center;
+  }
+
+  .flex-bc {
+    @apply flex justify-between items-center;
+  }
+
+  .navbar-bg-hover {
+    @apply dark:text-white;
+  }
+}
+
+/* CSS Variables */
+:root {
+  --color-bg_color: var(--el-bg-color);
+  --color-primary: var(--el-color-primary);
+  --color-text_color_primary: var(--el-text-color-primary);
+  --color-text_color_regular: var(--el-text-color-regular);
+}

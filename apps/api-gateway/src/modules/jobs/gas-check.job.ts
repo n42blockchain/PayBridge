@@ -6,19 +6,20 @@ import Decimal from 'decimal.js';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { TransactionService } from '../blockchain/transaction.service';
+import { DistributedLockService } from '../redis/distributed-lock.service';
 
 @Injectable()
 export class GasCheckJob {
   private readonly logger = new Logger(GasCheckJob.name);
   private readonly gasThreshold: bigint;
   private readonly gasSupplementAmount: bigint;
-  private isRunning = false;
 
   constructor(
     private prisma: PrismaService,
     private blockchainService: BlockchainService,
     private transactionService: TransactionService,
     private configService: ConfigService,
+    private distributedLock: DistributedLockService,
   ) {
     const threshold = this.configService.get<string>('GAS_THRESHOLD', '0.1');
     const supplement = this.configService.get<string>('GAS_SUPPLEMENT_AMOUNT', '0.5');
@@ -29,17 +30,20 @@ export class GasCheckJob {
 
   @Cron('0 */5 * * * *') // Every 5 minutes
   async handleGasCheck() {
-    if (this.isRunning) {
-      return;
-    }
-
-    this.isRunning = true;
     try {
-      await this.checkAndSupplementGas();
+      await this.distributedLock.withLock(
+        'job:gas-check',
+        async () => {
+          await this.checkAndSupplementGas();
+        },
+        { ttlMs: 120000, retryCount: 1 },
+      );
     } catch (error) {
+      if (error instanceof Error && error.message.includes('Failed to acquire lock')) {
+        this.logger.debug('Gas check job running on another instance');
+        return;
+      }
       this.logger.error('Error in gas check job:', error);
-    } finally {
-      this.isRunning = false;
     }
   }
 

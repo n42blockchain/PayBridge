@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CallbackService } from '../../callback/callback.service';
 import { BlockchainService } from '../../blockchain/blockchain.service';
 import { TransactionService } from '../../blockchain/transaction.service';
+import { DistributedLockService } from '../../redis/distributed-lock.service';
 
 describe('Jobs Module', () => {
   let orderExpireJob: OrderExpireJob;
@@ -72,6 +73,12 @@ describe('Jobs Module', () => {
     sendToken: jest.fn().mockResolvedValue('0x456def'),
   };
 
+  const mockDistributedLockService = {
+    withLock: jest.fn().mockImplementation(async (_key, fn) => fn()),
+    acquireLock: jest.fn().mockResolvedValue('lock-id'),
+    releaseLock: jest.fn().mockResolvedValue(true),
+  };
+
   const mockConfigService = {
     get: jest.fn().mockImplementation((key: string, defaultValue?: unknown) => {
       const config = {
@@ -102,6 +109,7 @@ describe('Jobs Module', () => {
         { provide: BlockchainService, useValue: mockBlockchainService },
         { provide: TransactionService, useValue: mockTransactionService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: DistributedLockService, useValue: mockDistributedLockService },
       ],
     }).compile();
 
@@ -266,6 +274,7 @@ describe('Jobs Module', () => {
           BlockchainSyncJob,
           { provide: PrismaService, useValue: mockPrismaService },
           { provide: BlockchainService, useValue: mockBlockchainService },
+          { provide: DistributedLockService, useValue: mockDistributedLockService },
           {
             provide: ConfigService,
             useValue: {
@@ -281,7 +290,7 @@ describe('Jobs Module', () => {
       const job = testModule.get<BlockchainSyncJob>(BlockchainSyncJob);
       await job.handleBlockchainSync();
 
-      expect(mockPrismaService.systemSetting.findUnique).not.toHaveBeenCalled();
+      expect(mockDistributedLockService.withLock).not.toHaveBeenCalled();
     });
 
     it('should sync from last synced block', async () => {

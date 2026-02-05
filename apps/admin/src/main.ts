@@ -1,45 +1,86 @@
-import { createApp } from 'vue';
-import { createPinia } from 'pinia';
-import ElementPlus from 'element-plus';
-import zhCn from 'element-plus/dist/locale/zh-cn.mjs';
-import * as ElementPlusIconsVue from '@element-plus/icons-vue';
-import { createHttpClient } from '@paybridge/shared-api';
-import App from './App.vue';
-import router from './router';
-import { useAuthStore } from './stores/auth';
+import App from "./App.vue";
+import router from "./router";
+import { setupStore } from "@/store";
+import { getPlatformConfig } from "./config";
+import { MotionPlugin } from "@vueuse/motion";
+// import { useEcharts } from "@/plugins/echarts";
+import { createApp, type Directive } from "vue";
+import { useElementPlus } from "@/plugins/elementPlus";
+import { injectResponsiveStorage } from "@/utils/responsive";
 
-import 'element-plus/dist/index.css';
-import './styles/index.scss';
+// Initialize PayBridge API client
+import { createHttpClient } from "@paybridge/shared-api";
+import { getToken, removeToken } from "@/utils/auth";
+
+// Setup HTTP client
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+createHttpClient({
+  baseURL: API_BASE_URL,
+  timeout: 30000,
+  getToken: () => {
+    const tokenInfo = getToken();
+    return tokenInfo?.accessToken || null;
+  },
+  onUnauthorized: () => {
+    removeToken();
+    router.push("/login");
+  },
+  onError: (error: Error) => {
+    console.error("API Error:", error);
+  }
+});
+
+import Table from "@pureadmin/table";
+// import PureDescriptions from "@pureadmin/descriptions";
+
+// 引入重置样式
+import "./style/reset.scss";
+// 导入公共样式
+import "./style/index.scss";
+// 一定要在main.ts中导入tailwind.css，防止vite每次hmr都会请求src/style/index.scss整体css文件导致热更新慢的问题
+import "./style/tailwind.css";
+import "element-plus/dist/index.css";
+// 导入字体图标
+import "./assets/iconfont/iconfont.js";
+import "./assets/iconfont/iconfont.css";
 
 const app = createApp(App);
 
-// Pinia
-const pinia = createPinia();
-app.use(pinia);
-
-// Initialize HTTP client
-createHttpClient({
-  baseURL: '',
-  getToken: () => {
-    const authStore = useAuthStore();
-    return authStore.accessToken;
-  },
-  onUnauthorized: () => {
-    const authStore = useAuthStore();
-    authStore.logout();
-    router.push('/login');
-  },
+// 自定义指令
+import * as directives from "@/directives";
+Object.keys(directives).forEach(key => {
+  app.directive(key, (directives as { [key: string]: Directive })[key]);
 });
 
-// Element Plus
-app.use(ElementPlus, { locale: zhCn });
+// 全局注册@iconify/vue图标库
+import {
+  IconifyIconOffline,
+  IconifyIconOnline,
+  FontIcon
+} from "./components/ReIcon";
+app.component("IconifyIconOffline", IconifyIconOffline);
+app.component("IconifyIconOnline", IconifyIconOnline);
+app.component("FontIcon", FontIcon);
 
-// Register all Element Plus icons
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component);
-}
+// 全局注册按钮级别权限组件
+import { Auth } from "@/components/ReAuth";
+import { Perms } from "@/components/RePerms";
+app.component("Auth", Auth);
+app.component("Perms", Perms);
 
-// Router
-app.use(router);
+// 全局注册vue-tippy
+import "tippy.js/dist/tippy.css";
+import "tippy.js/themes/light.css";
+import VueTippy from "vue-tippy";
+app.use(VueTippy);
 
-app.mount('#app');
+getPlatformConfig(app).then(async config => {
+  setupStore(app);
+  app.use(router);
+  await router.isReady();
+  injectResponsiveStorage(app, config);
+  app.use(MotionPlugin).use(useElementPlus).use(Table);
+  // .use(PureDescriptions)
+  // .use(useEcharts);
+  app.mount("#app");
+});

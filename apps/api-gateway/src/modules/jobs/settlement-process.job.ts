@@ -6,34 +6,38 @@ import Decimal from 'decimal.js';
 import { PrismaService } from '../prisma/prisma.service';
 import { TransactionService } from '../blockchain/transaction.service';
 import { SettlementOrderStatus } from '@paybridge/shared-types';
+import { DistributedLockService } from '../redis/distributed-lock.service';
 
 @Injectable()
 export class SettlementProcessJob {
   private readonly logger = new Logger(SettlementProcessJob.name);
   private readonly tokenDecimals: number;
-  private isRunning = false;
 
   constructor(
     private prisma: PrismaService,
     private transactionService: TransactionService,
     private configService: ConfigService,
+    private distributedLock: DistributedLockService,
   ) {
     this.tokenDecimals = this.configService.get<number>('TOKEN_DECIMALS', 18);
   }
 
   @Cron('0 * * * * *') // Every minute
   async handleSettlementProcess() {
-    if (this.isRunning) {
-      return;
-    }
-
-    this.isRunning = true;
     try {
-      await this.processApprovedSettlements();
+      await this.distributedLock.withLock(
+        'job:settlement-process',
+        async () => {
+          await this.processApprovedSettlements();
+        },
+        { ttlMs: 180000, retryCount: 1 },
+      );
     } catch (error) {
+      if (error instanceof Error && error.message.includes('Failed to acquire lock')) {
+        this.logger.debug('Settlement process job running on another instance');
+        return;
+      }
       this.logger.error('Error in settlement process job:', error);
-    } finally {
-      this.isRunning = false;
     }
   }
 

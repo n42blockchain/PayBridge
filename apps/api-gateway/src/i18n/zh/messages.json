@@ -1,0 +1,39 @@
+{
+  "AUTH_LOGIN_SUCCESS": "登录成功",
+  "AUTH_LOGOUT_SUCCESS": "登出成功",
+  "AUTH_PASSWORD_CHANGED": "密码修改成功",
+  "AUTH_2FA_ENABLED": "两步验证已启用",
+  "AUTH_2FA_DISABLED": "两步验证已禁用",
+
+  "USER_CREATED": "用户创建成功",
+  "USER_UPDATED": "用户更新成功",
+  "USER_DELETED": "用户删除成功",
+
+  "MERCHANT_CREATED": "商户创建成功",
+  "MERCHANT_UPDATED": "商户更新成功",
+  "MERCHANT_ENABLED": "商户已启用",
+  "MERCHANT_DISABLED": "商户已禁用",
+
+  "ORDER_CREATED": "订单创建成功",
+  "ORDER_PAID": "支付已收到",
+  "ORDER_COMPLETED": "订单已完成",
+  "ORDER_CANCELLED": "订单已取消",
+
+  "SETTLEMENT_CREATED": "结算申请创建成功",
+  "SETTLEMENT_APPROVED": "结算已批准",
+  "SETTLEMENT_REJECTED": "结算已拒绝",
+  "SETTLEMENT_COMPLETED": "结算已完成",
+
+  "REFUND_CREATED": "退款申请创建成功",
+  "REFUND_APPROVED": "退款已批准",
+  "REFUND_REJECTED": "退款已拒绝",
+  "REFUND_COMPLETED": "退款已完成",
+
+  "WALLET_CREATED": "钱包创建成功",
+  "WALLET_BALANCE_UPDATED": "钱包余额已更新",
+
+  "CALLBACK_SENT": "回调通知已发送",
+  "CALLBACK_RETRY_SCHEDULED": "回调重试已安排",
+
+  "SETTING_UPDATED": "设置更新成功"
+}

@@ -2,17 +2,28 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { createWinstonLogger } from './common/logger';
+import { I18nExceptionFilter } from './common/i18n';
+import { I18nService } from 'nestjs-i18n';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Create logger early for bootstrap logging
+  const isProduction = process.env.NODE_ENV === 'production';
+  const bootstrapLogger = createWinstonLogger(isProduction);
+
+  const app = await NestFactory.create(AppModule, {
+    logger: isProduction ? false : undefined, // Use Winston in production
+  });
+
+  // Use Winston logger from the module
+  app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('APP_PORT', 3000);
-  const isProduction = configService.get('NODE_ENV') === 'production';
 
   // Security headers with helmet
   app.use(
@@ -37,8 +48,9 @@ async function bootstrap() {
     }),
   );
 
-  // Global filters
-  app.useGlobalFilters(new HttpExceptionFilter());
+  // Global filters with i18n support
+  const i18nService = app.get(I18nService<Record<string, unknown>>);
+  app.useGlobalFilters(new I18nExceptionFilter(i18nService));
 
   // Global interceptors
   app.useGlobalInterceptors(new TransformInterceptor());
@@ -57,6 +69,7 @@ async function bootstrap() {
       'X-Nonce',
       'X-Sign-Type',
       'X-Signature',
+      'X-Language',
     ],
   });
 
@@ -82,7 +95,7 @@ async function bootstrap() {
   }
 
   await app.listen(port);
-  console.log(`PayBridge API Gateway running on port ${port}`);
+  bootstrapLogger.info(`PayBridge API Gateway running on port ${port}`);
 }
 
 bootstrap();

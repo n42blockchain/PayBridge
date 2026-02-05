@@ -3,6 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { LoggerModule } from './common/logger';
+import { PermissionModule } from './common/permissions';
+import { I18nModule } from './common/i18n';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { RedisModule } from './modules/redis/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -22,6 +25,7 @@ import { CacheModule } from './modules/cache/cache.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { QueueModule } from './modules/queue/queue.module';
 
 @Module({
   imports: [
@@ -49,6 +53,9 @@ import { AuditModule } from './modules/audit/audit.module';
       }),
     }),
     ScheduleModule.forRoot(),
+    LoggerModule,
+    PermissionModule,
+    I18nModule,
     PrismaModule,
     RedisModule,
     EventsModule,
@@ -68,6 +75,7 @@ import { AuditModule } from './modules/audit/audit.module';
     MetricsModule,
     HealthModule,
     AuditModule,
+    QueueModule,
   ],
   providers: [
     {

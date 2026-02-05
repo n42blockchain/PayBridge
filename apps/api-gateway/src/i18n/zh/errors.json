@@ -1,0 +1,58 @@
+{
+  "VALIDATION_ERROR": "数据验证失败",
+  "UNAUTHORIZED": "未经授权的访问",
+  "FORBIDDEN": "您没有权限访问此资源",
+  "NOT_FOUND": "资源未找到",
+  "INTERNAL_ERROR": "服务器内部错误",
+  "BAD_REQUEST": "请求参数错误",
+  "CONFLICT": "资源已存在",
+  "RATE_LIMIT_EXCEEDED": "请求过于频繁，请稍后再试",
+
+  "AUTH_INVALID_CREDENTIALS": "邮箱或密码错误",
+  "AUTH_USER_DISABLED": "账户已被禁用",
+  "AUTH_USER_SUSPENDED": "账户已被暂停",
+  "AUTH_TOKEN_EXPIRED": "会话已过期，请重新登录",
+  "AUTH_TOKEN_INVALID": "无效的身份验证令牌",
+  "AUTH_2FA_REQUIRED": "需要两步验证",
+  "AUTH_2FA_INVALID": "两步验证码错误",
+  "AUTH_PASSWORD_MISMATCH": "当前密码错误",
+
+  "MERCHANT_NOT_FOUND": "商户未找到",
+  "MERCHANT_DISABLED": "商户已被禁用",
+  "MERCHANT_FROZEN": "商户已被冻结",
+  "MERCHANT_INSUFFICIENT_BALANCE": "商户余额不足",
+
+  "ORDER_NOT_FOUND": "订单未找到",
+  "ORDER_EXPIRED": "订单已过期",
+  "ORDER_ALREADY_PAID": "订单已支付",
+  "ORDER_INVALID_STATUS": "订单状态不允许此操作",
+  "ORDER_AMOUNT_MISMATCH": "支付金额与订单金额不符",
+
+  "WALLET_NOT_FOUND": "钱包未找到",
+  "WALLET_INSUFFICIENT_BALANCE": "钱包余额不足",
+  "WALLET_INACTIVE": "钱包未激活",
+
+  "SETTLEMENT_NOT_FOUND": "结算单未找到",
+  "SETTLEMENT_INVALID_STATUS": "结算状态不允许此操作",
+  "SETTLEMENT_AMOUNT_TOO_LOW": "结算金额低于最小限额",
+  "SETTLEMENT_AUDIT_REQUIRED": "结算需要审批",
+
+  "REFUND_NOT_FOUND": "退款申请未找到",
+  "REFUND_AMOUNT_EXCEEDED": "退款金额超过原支付金额",
+  "REFUND_ALREADY_PROCESSED": "退款已处理",
+
+  "CHANNEL_NOT_FOUND": "支付渠道未找到",
+  "CHANNEL_DISABLED": "支付渠道已禁用",
+  "CHANNEL_NOT_AVAILABLE": "支付渠道暂不可用",
+
+  "SIGNATURE_INVALID": "请求签名无效",
+  "SIGNATURE_TIMESTAMP_EXPIRED": "请求时间戳已过期",
+  "SIGNATURE_NONCE_REUSED": "请求随机数已被使用",
+
+  "TX_FAILED": "区块链交易失败",
+  "TX_PENDING": "区块链交易确认中",
+  "TX_NOT_FOUND": "区块链交易未找到",
+
+  "BAD_GATEWAY": "网关错误",
+  "SERVICE_UNAVAILABLE": "服务暂时不可用"
+}

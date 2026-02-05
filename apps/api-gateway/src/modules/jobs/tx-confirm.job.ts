@@ -4,17 +4,18 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { OnchainTxStatus } from '@paybridge/shared-types';
+import { DistributedLockService } from '../redis/distributed-lock.service';
 
 @Injectable()
 export class TxConfirmJob {
   private readonly logger = new Logger(TxConfirmJob.name);
   private readonly requiredConfirmations: number;
-  private isRunning = false;
 
   constructor(
     private prisma: PrismaService,
     private blockchainService: BlockchainService,
     private configService: ConfigService,
+    private distributedLock: DistributedLockService,
   ) {
     this.requiredConfirmations = this.configService.get<number>(
       'REQUIRED_CONFIRMATIONS',
@@ -24,17 +25,20 @@ export class TxConfirmJob {
 
   @Cron('*/10 * * * * *') // Every 10 seconds
   async handleTxConfirmation() {
-    if (this.isRunning) {
-      return;
-    }
-
-    this.isRunning = true;
     try {
-      await this.confirmPendingTransactions();
+      await this.distributedLock.withLock(
+        'job:tx-confirm',
+        async () => {
+          await this.confirmPendingTransactions();
+        },
+        { ttlMs: 30000, retryCount: 1 },
+      );
     } catch (error) {
+      if (error instanceof Error && error.message.includes('Failed to acquire lock')) {
+        this.logger.debug('Tx confirmation job running on another instance');
+        return;
+      }
       this.logger.error('Error in transaction confirmation job:', error);
-    } finally {
-      this.isRunning = false;
     }
   }
 

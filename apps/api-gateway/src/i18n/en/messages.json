@@ -1,0 +1,39 @@
+{
+  "AUTH_LOGIN_SUCCESS": "Login successful",
+  "AUTH_LOGOUT_SUCCESS": "Logout successful",
+  "AUTH_PASSWORD_CHANGED": "Password changed successfully",
+  "AUTH_2FA_ENABLED": "Two-factor authentication enabled",
+  "AUTH_2FA_DISABLED": "Two-factor authentication disabled",
+
+  "USER_CREATED": "User created successfully",
+  "USER_UPDATED": "User updated successfully",
+  "USER_DELETED": "User deleted successfully",
+
+  "MERCHANT_CREATED": "Merchant created successfully",
+  "MERCHANT_UPDATED": "Merchant updated successfully",
+  "MERCHANT_ENABLED": "Merchant enabled successfully",
+  "MERCHANT_DISABLED": "Merchant disabled successfully",
+
+  "ORDER_CREATED": "Order created successfully",
+  "ORDER_PAID": "Payment received successfully",
+  "ORDER_COMPLETED": "Order completed successfully",
+  "ORDER_CANCELLED": "Order cancelled successfully",
+
+  "SETTLEMENT_CREATED": "Settlement request created successfully",
+  "SETTLEMENT_APPROVED": "Settlement approved successfully",
+  "SETTLEMENT_REJECTED": "Settlement rejected",
+  "SETTLEMENT_COMPLETED": "Settlement completed successfully",
+
+  "REFUND_CREATED": "Refund request created successfully",
+  "REFUND_APPROVED": "Refund approved successfully",
+  "REFUND_REJECTED": "Refund rejected",
+  "REFUND_COMPLETED": "Refund completed successfully",
+
+  "WALLET_CREATED": "Wallet created successfully",
+  "WALLET_BALANCE_UPDATED": "Wallet balance updated",
+
+  "CALLBACK_SENT": "Callback notification sent",
+  "CALLBACK_RETRY_SCHEDULED": "Callback retry scheduled",
+
+  "SETTING_UPDATED": "Setting updated successfully"
+}

@@ -1,0 +1,58 @@
+{
+  "VALIDATION_ERROR": "Validation failed",
+  "UNAUTHORIZED": "Unauthorized access",
+  "FORBIDDEN": "You do not have permission to access this resource",
+  "NOT_FOUND": "Resource not found",
+  "INTERNAL_ERROR": "Internal server error",
+  "BAD_REQUEST": "Bad request",
+  "CONFLICT": "Resource already exists",
+  "RATE_LIMIT_EXCEEDED": "Too many requests, please try again later",
+
+  "AUTH_INVALID_CREDENTIALS": "Invalid email or password",
+  "AUTH_USER_DISABLED": "Account is disabled",
+  "AUTH_USER_SUSPENDED": "Account is suspended",
+  "AUTH_TOKEN_EXPIRED": "Session expired, please login again",
+  "AUTH_TOKEN_INVALID": "Invalid authentication token",
+  "AUTH_2FA_REQUIRED": "Two-factor authentication required",
+  "AUTH_2FA_INVALID": "Invalid two-factor authentication code",
+  "AUTH_PASSWORD_MISMATCH": "Current password is incorrect",
+
+  "MERCHANT_NOT_FOUND": "Merchant not found",
+  "MERCHANT_DISABLED": "Merchant is disabled",
+  "MERCHANT_FROZEN": "Merchant is frozen",
+  "MERCHANT_INSUFFICIENT_BALANCE": "Insufficient merchant balance",
+
+  "ORDER_NOT_FOUND": "Order not found",
+  "ORDER_EXPIRED": "Order has expired",
+  "ORDER_ALREADY_PAID": "Order has already been paid",
+  "ORDER_INVALID_STATUS": "Invalid order status for this operation",
+  "ORDER_AMOUNT_MISMATCH": "Payment amount does not match order amount",
+
+  "WALLET_NOT_FOUND": "Wallet not found",
+  "WALLET_INSUFFICIENT_BALANCE": "Insufficient wallet balance",
+  "WALLET_INACTIVE": "Wallet is inactive",
+
+  "SETTLEMENT_NOT_FOUND": "Settlement order not found",
+  "SETTLEMENT_INVALID_STATUS": "Invalid settlement status for this operation",
+  "SETTLEMENT_AMOUNT_TOO_LOW": "Settlement amount is below minimum threshold",
+  "SETTLEMENT_AUDIT_REQUIRED": "Settlement requires approval",
+
+  "REFUND_NOT_FOUND": "Refund request not found",
+  "REFUND_AMOUNT_EXCEEDED": "Refund amount exceeds original payment",
+  "REFUND_ALREADY_PROCESSED": "Refund has already been processed",
+
+  "CHANNEL_NOT_FOUND": "Payment channel not found",
+  "CHANNEL_DISABLED": "Payment channel is disabled",
+  "CHANNEL_NOT_AVAILABLE": "Payment channel is not available",
+
+  "SIGNATURE_INVALID": "Invalid request signature",
+  "SIGNATURE_TIMESTAMP_EXPIRED": "Request timestamp has expired",
+  "SIGNATURE_NONCE_REUSED": "Request nonce has been used",
+
+  "TX_FAILED": "Blockchain transaction failed",
+  "TX_PENDING": "Blockchain transaction is pending confirmation",
+  "TX_NOT_FOUND": "Blockchain transaction not found",
+
+  "BAD_GATEWAY": "Bad gateway",
+  "SERVICE_UNAVAILABLE": "Service temporarily unavailable"
+}
